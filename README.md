@@ -191,7 +191,7 @@ fn main() {
 As statements do not return values, you can't assign a variable to a statement.
 
 ```rust
-let x = (let y = 6); // error: expected expression, found statement (`let`)
+let x = (let y = 6); // Error: expected expression, found statement (`let`)
 ```
 
 `let x = 5` does not return a value, which is different to languages like C where you can do things like `x = y = 6`.
@@ -237,3 +237,109 @@ fn five() -> i32 {
 ```
 
 > This is all too magic for me 😕. I prefer things to be more explicit. Lines of different code having different meanings depending on whether they have a semicolon seems like a terrible idea. Also I've never liked having implicit returns, just makes the code hard to read in my opinion.
+
+## Control Flow
+
+### `if` Expressions
+
+```rust
+let number = 6;
+
+if number % 3 == 0 {
+  println!("number is divisible by 3");
+} else if number % 2 == 0 {
+  println!("number is divisible by 2");
+} else {
+  println!("number is not divisible by 3, or 2");
+}
+```
+
+Must be provided a expression that evaluates to a `bool`. Does not do "truthiness" checks like e.g. Javascript.
+
+```rust
+let number = 3;
+
+if number {
+  println!("number was three");
+} // Error: expected bool, found integral variable
+```
+
+### Using `if` in a `let` Statement
+
+Because if is an expression, we can use it on the right side of a let statement.
+
+```rust
+let condition = true;
+let number = if condition {
+  5
+} else {
+  6
+};
+```
+
+> Nicer than ternary operator
+
+### Loops
+
+#### `loop`
+
+Can be used as `while true` equivalent.
+
+```rust
+loop {
+  println!("again!");
+}
+```
+
+Can stop a `loop` with `break`. `break` also allows you to return a value.
+
+```rust
+let mut counter = 0;
+
+let result = loop {
+  counter += 1;
+
+  if counter == 10 {
+    break counter * 2;
+  }
+};
+
+assert_eq!(result, 20);
+```
+
+#### `while`
+
+Basically the same as `loop` but let's you omit a lot of unnecessary `loop`, `if`, `else`, and `break`.
+
+```rust
+let mut number = 3;
+
+while number != 0 {
+  println!("{}!", number);
+
+  number = number - 1;
+}
+
+println!("LIFTOFF!!!");
+```
+
+#### `for`
+
+For loops can only be used to iterate over collections. There is no C-style for loop in rust.
+
+```rust
+let a = [10, 20, 30, 40, 50];
+
+for element in a.iter() {
+  println!("the value is: {}", element);
+}
+```
+
+`for (int i = 0; i < 4; i++) {` equivalent would be
+
+```
+for number in (1..4).rev() {
+  println!("{}!", number);
+}
+println!("LIFTOFF!!!");
+```
