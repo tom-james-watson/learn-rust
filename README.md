@@ -68,6 +68,7 @@ println!("spaces is '{}'", spaces); // spaces is '     '
 | 32-bit | `i32` | `u32` |
 | 64-bit | `i64` | `u64` |
 | 128-bit | `i128` | `u128` |
+| arch | `isize` | `usize` |
 
 `i8` is -128 to 127, `u8` is 0 to 255.
 
@@ -342,4 +343,400 @@ for number in (1..4).rev() {
   println!("{}!", number);
 }
 println!("LIFTOFF!!!");
+```
+
+## Ownership
+
+Ownership is Rust’s most unique feature, and it enables Rust to make memory safety guarantees without needing a garbage collector.
+
+Rust automatically calls a `drop` function that frees any heap-allocated variables once their owner goes out of scope. This means you do no have to manually `free` allocated variables, which avoids an entire class of memory deallocation bugs, nor do you need a garbage collector.
+
+```rust
+{
+    let s = String::from("hello"); // s is valid from this point forward
+
+    // do stuff with s
+}                                  // this scope is now over, and s is no
+                                   // longer valid
+```
+
+A heap-allocated variable can have at most one owner. Assigning a heap-allocated variable to a new variable will invalidate the first reference. For example the following code:
+
+```rust
+let s1 = String::from("hello");
+let s2 = s1;
+
+println!("{}, world!", s1);
+```
+
+Will throw the following error:
+
+```
+error[E0382]: use of moved value: `s1`
+ --> src/main.rs:5:28
+  |
+3 |     let s2 = s1;
+  |         -- value moved here
+4 |
+5 |     println!("{}, world!", s1);
+  |                            ^^ value used here after move
+  |
+  = note: move occurs because `s1` has type `std::string::String`, which does
+  not implement the `Copy` trait
+```
+
+If you’ve heard the terms shallow copy and deep copy while working with other languages, the concept of copying the pointer, length, and capacity without copying the data probably sounds like making a shallow copy. But because Rust also invalidates the first variable, instead of being called a shallow copy, it’s known as a move. In this example, we would say that s1 was moved into s2.
+
+In addition, there’s a design choice that’s implied by this: Rust will never automatically create “deep” copies of your data. Therefore, any automatic copying can be assumed to be inexpensive in terms of runtime performance.
+
+### Clone
+
+If you do want a deep copy, you can use the `clone` method.
+
+```rust
+let s1 = String::from("hello");
+let s2 = s1.clone();
+
+println!("s1 = {}, s2 = {}", s1, s2);`
+```
+
+This is now fine, though this will copy the heap data and is expensive.
+
+### Copy
+
+Rust has a special annotation called the `Copy` trait that we can place on types like integers that are stored on the stack. If a type has the `Copy` trait, an older variable is still usable after assignment. Here are some of the types that are `Copy`:
+
+* All the integer types, such as `u32`.
+* The Boolean type, `bool`, with values `true` and `false`.
+* All the floating point types, such as `f64`.
+* The character type, `char`.
+* Tuples, if they only contain types that are also `Copy`. For example, `(i32, i32)` is `Copy`, but `(i32, String)` is not.
+
+### Ownership and Functions
+
+```rust
+fn main() {
+    let s = String::from("hello");  // s comes into scope
+
+    takes_ownership(s);             // s's value moves into the function...
+                                    // ... and so is no longer valid here
+
+    let x = 5;                      // x comes into scope
+
+    makes_copy(x);                  // x would move into the function,
+                                    // but i32 is Copy, so it’s okay to still
+                                    // use x afterward
+
+} // Here, x goes out of scope, then s. But because s's value was moved, nothing
+  // special happens.
+
+fn takes_ownership(some_string: String) { // some_string comes into scope
+    println!("{}", some_string);
+} // Here, some_string goes out of scope and `drop` is called. The backing
+  // memory is freed.
+
+fn makes_copy(some_integer: i32) { // some_integer comes into scope
+    println!("{}", some_integer);
+} // Here, some_integer goes out of scope. Nothing special happens.
+```
+
+### Return Values and Scope
+
+```rust
+fn main() {
+    let s1 = gives_ownership();         // gives_ownership moves its return
+                                        // value into s1
+
+    let s2 = String::from("hello");     // s2 comes into scope
+
+    let s3 = takes_and_gives_back(s2);  // s2 is moved into
+                                        // takes_and_gives_back, which also
+                                        // moves its return value into s3
+} // Here, s3 goes out of scope and is dropped. s2 goes out of scope but was
+  // moved, so nothing happens. s1 goes out of scope and is dropped.
+
+fn gives_ownership() -> String {             // gives_ownership will move its
+                                             // return value into the function
+                                             // that calls it
+
+    let some_string = String::from("hello"); // some_string comes into scope
+
+    some_string                              // some_string is returned and
+                                             // moves out to the calling
+                                             // function
+}
+
+// takes_and_gives_back will take a String and return one
+fn takes_and_gives_back(a_string: String) -> String { // a_string comes into
+                                                      // scope
+
+    a_string  // a_string is returned and moves out to the calling function
+}
+```
+
+## References and Borrowing
+
+Taking ownership and then returning ownership with every function is a bit tedious. What if we want to let a function use a value but not take ownership?
+
+```rust
+fn main() {
+    let s1 = String::from("hello");
+
+    let len = calculate_length(&s1);
+
+    println!("The length of '{}' is {}.", s1, len);
+}
+
+fn calculate_length(s: &String) -> usize {
+    s.len()
+}
+```
+
+These ampersands are references, and they allow you to refer to some value without taking ownership of it. Because a reference does not own it, the value it points to will not be dropped when the reference goes out of scope.
+
+We call having references as function parameters _borrowing_.
+
+References are immutable by default.
+
+### Mutable References
+
+```rust
+fn main() {
+    let mut s = String::from("hello");
+
+    change(&mut s);
+}
+
+fn change(some_string: &mut String) {
+    some_string.push_str(", world");
+}
+```
+
+First, we had to change `s` to be `mut`. Then we had to create a mutable reference with `&mut s` and accept a mutable reference with `some_string: &mut String`.
+
+But mutable references have one big restriction: you can have only one mutable reference to a particular piece of data in a particular scope. This code will fail:
+
+```rust
+let mut s = String::from("hello");
+
+let r1 = &mut s;
+let r2 = &mut s;
+
+println!("{}, {}", r1, r2);
+```
+
+Here's the error:
+
+```
+error[E0499]: cannot borrow `s` as mutable more than once at a time
+ --> src/main.rs:5:10
+  |
+4 | let r1 = &mut s;
+  |          ------ first mutable borrow occurs here
+5 | let r2 = &mut s;
+  |          ^^^^^^ second mutable borrow occurs here
+6 | println!("{}, {}", r1, r2);
+  |                    -- borrow later used here
+```
+
+This prevents _data races_ at compile time. As always, we can use curly brackets to create a new scope, allowing for multiple mutable references, just not simultaneous ones:
+
+```rust
+let mut s = String::from("hello");
+
+{
+    let r1 = &mut s;
+
+} // r1 goes out of scope here, so we can make a new reference with no problems.
+
+let r2 = &mut s;
+```
+
+We also cannot have a mutable reference while we have an immutable one. Users of an immutable reference don’t expect the values to suddenly change out from under them. The following code will fail:
+
+```rust
+let mut s = String::from("hello");
+
+let r1 = &s; // no problem
+let r2 = &s; // no problem
+let r3 = &mut s; // BIG PROBLEM
+
+println!("{}, {}, and {}", r1, r2, r3);
+```
+
+Here's the error:
+
+```
+error[E0502]: cannot borrow `s` as mutable because it is also borrowed as immutable
+ --> src/main.rs:6:10
+  |
+4 | let r1 = &s; // no problem
+  |          -- immutable borrow occurs here
+5 | let r2 = &s; // no problem
+6 | let r3 = &mut s; // BIG PROBLEM
+  |          ^^^^^^ mutable borrow occurs here
+7 |
+8 | println!("{}, {}, and {}", r1, r2, r3);
+  |                            -- borrow later used here
+```
+
+## Slices
+
+```rust
+let s = String::from("hello world");
+
+let hello = &s[0..5];
+let world = &s[6..11];
+
+// or
+
+let hello = &s[0..=4];
+let world = &s[6..=10];
+
+// or
+
+let hello = &s[..5];
+let world = &s[6..];
+
+let hello_world = &s[..];
+```
+
+```rust
+fn first_word(s: &String) -> &str {
+    let bytes = s.as_bytes();
+
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return &s[0..i];
+        }
+    }
+
+    &s[..]
+}
+```
+
+### String Literals Are Slices
+
+Recall that we talked about string literals being stored inside the binary. Now that we know about slices, we can properly understand string literals:
+
+```rust
+let s = "Hello, world!";
+```
+
+The type of `s` here is `&str`: it’s a slice pointing to that specific point of the binary. This is also why string literals are immutable; &str is an immutable reference.
+
+### String Slices as Parameters
+
+We can update our `first_word` function to accept a string slice instead, which allows it to be called with both `String` and `&str` values.
+
+```rust
+fn first_word(s: &str) -> &str {
+```
+
+```rust
+let my_string = String::from("hello world");
+
+// first_word works on slices of `String`s
+let word = first_word(&my_string[..]);
+
+let my_string_literal = "hello world";
+
+// first_word works on slices of string literals
+let word = first_word(&my_string_literal[..]);
+
+// Because string literals *are* string slices already,
+// this works too, without the slice syntax!
+let word = first_word(my_string_literal);
+```
+
+### Other Slices
+
+You can also take slices of other types of collections, such as arrays:
+
+```rust
+let a = [1, 2, 3, 4, 5];
+let slice: &[i32] = &a[1..3];
+```
+
+## Structs
+
+```rust
+struct User {
+  username: String,
+  email: String,
+  sign_in_count: u64,
+  active: bool,
+}
+```
+
+### Creating a Struct Instance
+
+```rust
+let user1 = User {
+    email: String::from("someone@example.com"),
+    username: String::from("someusername123"),
+    active: true,
+    sign_in_count: 1,
+};
+```
+
+### Creating a Mutable Struct Instance
+
+```rust
+let mut user1 = User {
+    email: String::from("someone@example.com"),
+    username: String::from("someusername123"),
+    active: true,
+    sign_in_count: 1,
+};
+
+user1.email = String::from("anotheremail@example.com");
+```
+
+Note that the entire instance must be mutable; Rust doesn’t allow us to mark only certain fields as mutable.
+
+### Using the Field Init Shorthand when Variables and Fields Have the Same Name
+
+```rust
+fn build_user(email: String, username: String) -> User {
+    User {
+        email,
+        username,
+        active: true,
+        sign_in_count: 1,
+    }
+}
+```
+
+### Creating Instances From Other Instances With Struct Update Syntax
+
+Instead of:
+
+```rust
+let user2 = User {
+    email: String::from("another@example.com"),
+    username: String::from("anotherusername567"),
+    active: user1.active,
+    sign_in_count: user1.sign_in_count,
+};
+```
+
+We can do:
+
+```rust
+let user2 = User {
+    email: String::from("another@example.com"),
+    username: String::from("anotherusername567"),
+    ..user1
+};
+```
+
+### Tuple Structs
+
+```rust
+struct Color(i32, i32, i32);
+struct Point(i32, i32, i32);
+
+let black = Color(0, 0, 0);
+let origin = Point(0, 0, 0);
 ```
