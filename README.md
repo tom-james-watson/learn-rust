@@ -740,3 +740,261 @@ struct Point(i32, i32, i32);
 let black = Color(0, 0, 0);
 let origin = Point(0, 0, 0);
 ```
+
+### Methods
+
+```rust
+struct Rectangle {
+    width: u32,
+    height: u32
+}
+
+impl Rectangle {
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+
+    fn widen(&mut self, increase: u32) {
+        self.width += increase;
+    }
+}
+
+let mut rect = Rectangle { width: 30, height: 50 };
+
+println!(
+    "The area of the rectangle is {} square pixels.",
+    rect.area()
+);
+
+rect.widen(10);
+```
+
+### Associated Functions
+
+```rust
+impl Rectangle {
+    fn square(size: u32) -> Rectangle {
+        Rectangle { width: size, height: size }
+    }
+}
+
+let sq = Rectangle::square(3);
+```
+
+To call this associated function, we use the `::` syntax with the struct name. This function is namespaced by the struct: the `::` syntax is used for both associated functions and namespaces created by modules.
+
+## Enums
+
+Enums work similarly to other languages:
+
+```rust
+enum IpAddrKind {
+    V4,
+    V6,
+}
+
+struct IpAddr {
+    kind: IpAddrKind,
+    address: String,
+}
+
+let home = IpAddr {
+    kind: IpAddrKind::V4,
+    address: String::from("127.0.0.1"),
+};
+
+let loopback = IpAddr {
+    kind: IpAddrKind::V6,
+    address: String::from("::1"),
+};
+```
+
+Data can also be attached to each variant of the enum. This data can have different types, which is something you couldn't do with a plain struct:
+
+```rust
+enum IpAddr {
+    V4(u8, u8, u8, u8),
+    V6(String),
+}
+
+let home = IpAddr::V4(127, 0, 0, 1);
+
+let loopback = IpAddr::V6(String::from("::1"));
+```
+
+More terse than creating multiple structs. For example the following:
+
+```rust
+enum Message {
+    Quit, // no data associated with it
+    Move { x: i32, y: i32 }, // an anonymous struct
+    Write(String), // a single string
+    ChangeColor(i32, i32, i32), // three integers
+}
+
+```
+
+Would be equivalent to the following structs:
+
+```rust
+struct QuitMessage; // unit struct
+struct MoveMessage {
+    x: i32,
+    y: i32,
+}
+struct WriteMessage(String); // tuple struct
+struct ChangeColorMessage(i32, i32, i32); // tuple struct
+```
+
+But if we used the different structs, which each have their own type, we couldn’t as easily define a function to take any of these kinds of messages as we could with the `Message` enum.
+
+### Enum Methods
+
+We can define methods on enums in a similar way to how we can on structs:
+
+```rust
+impl Message {
+    fn call(&self) {
+        // method body would be defined here
+    }
+}
+
+let m = Message::Write(String::from("hello"));
+m.call();
+```
+
+### The `Option` Enum and Its Advantages over Null Values
+
+Rust does not have the concept of `null`. Rust forces you to explicitly opt-in to allowing a `None` value by defining a variable as having the `Option<T>` type, which is defined as so:
+
+```rust
+enum Option<T> {
+    Some(T),
+    None,
+}
+```
+
+For example:
+
+```rust
+let some_number: Option<i32> = Some(5);
+let some_string: Option<&str> = Some("a string");
+
+let absent_number: Option<i32> = None;
+```
+
+Then, in order to be able to actually to use the value as a variable of type `T`, you need to convert from type `Option<T>` to type `T`, explicitly handling the case where the variable is `None`.
+
+Any variable that is type `T` can therefore be guaranteed to never be `None`, avoiding the whole set of errors where a variable is unexpectedly `null`.
+
+## Match
+
+```rust
+enum Coin {
+    Penny,
+    Nickel,
+    Dime,
+    Quarter,
+}
+
+fn value_in_cents(coin: Coin) -> u32 {
+    match coin {
+        Coin::Penny => { // curly brackets optional
+            println!("Lucky penny!");
+            1
+        },
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter => 25,
+    }
+}
+```
+
+### Patterns That Bind To Values
+
+```rust
+enum UsState {
+    Alabama,
+    Alaska,
+    // --snip--
+}
+
+enum Coin {
+    Penny,
+    Nickel,
+    Dime,
+    Quarter(UsState),
+}
+
+fn value_in_cents(coin: Coin) -> u32 {
+    match coin {
+        Coin::Penny => 1,
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter(state) => {
+            println!("State quarter from {:?}!", state);
+            25
+        },
+    }
+}
+
+value_in_cents(Coin::Quarter(UsState::Alaska))
+```
+
+### Matching With `Option<T>`
+
+```rust
+fn plus_one(x: Option<i32>) -> Option<i32> {
+    match x {
+        None => None,
+        Some(i) => Some(i + 1),
+    }
+}
+
+let five = Some(5);
+let six = plus_one(five);
+let none = plus_one(None);
+```
+
+### Matches Are Exhaustive
+
+
+Matches must handle all variants of an enum.
+
+### The `_` Placeholder
+
+If you don't want to explicitly handle all variants, you can use the `_` placeholder to match any other value.
+
+```rust
+let some_u8_value = 0u8;
+match some_u8_value {
+    1 => println!("one"),
+    3 => println!("three"),
+    5 => println!("five"),
+    7 => println!("seven"),
+    _ => (),
+}
+```
+
+The `()` is the unit value, so nothing will happen if `_` is matched.
+
+### `if let`
+
+Sometimes the `match` control flow is overly verbose. Instead of:
+
+```rust
+let mut count = 0;
+match coin {
+    Coin::Quarter(state) => println!("State quarter from {:?}!", state),
+    _ => count += 1,
+}
+```
+
+```rust
+let mut count = 0;
+if let Coin::Quarter(state) = coin {
+    println!("State quarter from {:?}!", state);
+} else {
+    count += 1;
+}
+```
