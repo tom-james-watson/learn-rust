@@ -16,6 +16,7 @@ y = 6; // OK.
 ```
 
 Constant variables can also be created.
+
 * Must be type annotated.
 * Can only be set to value of a constant expression, i.e. cannot be set to the result of a function call.
 
@@ -61,14 +62,14 @@ println!("spaces is '{}'", spaces); // spaces is '     '
 
 #### Integer
 
-| Length | Signed | Unsigned |
-|--------|--------|----------|
-| 8-bit | `i8` | `u8` |
-| 16-bit | `i16` | `u16` |
-| 32-bit | `i32` | `u32` |
-| 64-bit | `i64` | `u64` |
-| 128-bit | `i128` | `u128` |
-| arch | `isize` | `usize` |
+| Length  | Signed  | Unsigned |
+| ------- | ------- | -------- |
+| 8-bit   | `i8`    | `u8`     |
+| 16-bit  | `i16`   | `u16`    |
+| 32-bit  | `i32`   | `u32`    |
+| 64-bit  | `i64`   | `u64`    |
+| 128-bit | `i128`  | `u128`   |
+| arch    | `isize` | `usize`  |
 
 `i8` is -128 to 127, `u8` is 0 to 255.
 
@@ -202,6 +203,7 @@ let x = (let y = 6); // Error: expected expression, found statement (`let`)
 Expressions evaluate to a resulting value. Expressions do not have semicolons.
 
 Examples are:
+
 * Calling a function.
 * Calling a macro.
 * Operations such as `5 + 6`.
@@ -229,15 +231,13 @@ Note that `x + 1` does not have a semicolon. Adding a semicolon would turn the e
 
 ### Functions with Return Values
 
-Return values are not named, but we do declare their type after an arrow `->`. Rust automatically returns the value of the final expression of a function (gross!). You can explicitly return early with `return`.
+Return values are not named, but we do declare their type after an arrow `->`. Rust automatically returns the value of the final expression of a function. You can explicitly return early with `return`.
 
 ```rust
 fn five() -> i32 {
   5 // having no semicolon makes this an expression
 } // returns 5
 ```
-
-> This is all too magic for me 😕. I prefer things to be more explicit. Lines of different code having different meanings depending on whether they have a semicolon seems like a terrible idea. Also I've never liked having implicit returns, just makes the code hard to read in my opinion.
 
 ## Control Flow
 
@@ -831,7 +831,6 @@ enum Message {
     Write(String), // a single string
     ChangeColor(i32, i32, i32), // three integers
 }
-
 ```
 
 Would be equivalent to the following structs:
@@ -957,7 +956,6 @@ let none = plus_one(None);
 ```
 
 ### Matches Are Exhaustive
-
 
 Matches must handle all variants of an enum.
 
