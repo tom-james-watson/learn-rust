@@ -1,5 +1,4 @@
-Learning Rust
-=============
+# Learning Rust
 
 My notes and exercises for learning Rust.
 
@@ -17,8 +16,8 @@ y = 6; // OK.
 
 Constant variables can also be created.
 
-* Must be type annotated.
-* Can only be set to value of a constant expression, i.e. cannot be set to the result of a function call.
+- Must be type annotated.
+- Can only be set to value of a constant expression, i.e. cannot be set to the result of a function call.
 
 ```rust
 const MAX_POINTS u32 = 100;
@@ -204,10 +203,10 @@ Expressions evaluate to a resulting value. Expressions do not have semicolons.
 
 Examples are:
 
-* Calling a function.
-* Calling a macro.
-* Operations such as `5 + 6`.
-* Blocks that are used to create new scopes, `{}`.
+- Calling a function.
+- Calling a macro.
+- Operations such as `5 + 6`.
+- Blocks that are used to create new scopes, `{}`.
 
 The expression
 
@@ -406,11 +405,11 @@ This is now fine, though this will copy the heap data and is expensive.
 
 Rust has a special annotation called the `Copy` trait that we can place on types like integers that are stored on the stack. If a type has the `Copy` trait, an older variable is still usable after assignment. Here are some of the types that are `Copy`:
 
-* All the integer types, such as `u32`.
-* The Boolean type, `bool`, with values `true` and `false`.
-* All the floating point types, such as `f64`.
-* The character type, `char`.
-* Tuples, if they only contain types that are also `Copy`. For example, `(i32, i32)` is `Copy`, but `(i32, String)` is not.
+- All the integer types, such as `u32`.
+- The Boolean type, `bool`, with values `true` and `false`.
+- All the floating point types, such as `f64`.
+- The character type, `char`.
+- Tuples, if they only contain types that are also `Copy`. For example, `(i32, i32)` is `Copy`, but `(i32, String)` is not.
 
 ### Ownership and Functions
 
@@ -995,4 +994,171 @@ if let Coin::Quarter(state) = coin {
 } else {
     count += 1;
 }
+```
+
+## Modules
+
+Modules provide namespacing for code and also is where code privacy is enforced.
+
+### Module pathing
+
+Crate paths can be either relative or absolute.
+
+```rust
+mod front_of_house {
+    pub mod hosting {
+        pub fn add_to_waitlist() {}
+    }
+}
+
+pub fn eat_at_restaurant() {
+    // Absolute path
+    crate::front_of_house::hosting::add_to_waitlist();
+
+    // Relative path
+    front_of_house::hosting::add_to_waitlist();
+}
+```
+
+### Move upwards with `super`
+
+You can travel upwards in the module hierarchy by using `super`:
+
+```rust
+fn serve_order() {}
+
+mod back_of_house {
+    fn fix_incorrect_order() {
+        cook_order();
+        super::serve_order();
+    }
+
+    fn cook_order() {}
+}
+```
+
+### Controlling visibility with `pub`
+
+Child modules and functions can be made reachable outside of a module by addding the `pub` keyword. Everything is private by default.
+
+Structs have an extra layer of visibility, where fields default to private unless made public with `pub`.
+
+```rust
+mod my {
+    // A public struct with a public field of generic type `T`
+    pub struct OpenBox<T> {
+        pub contents: T,
+    }
+
+    // A public struct with a private field of generic type `T`
+    #[allow(dead_code)]
+    pub struct ClosedBox<T> {
+        contents: T,
+    }
+}
+```
+
+### Bringing modules into scope
+
+To avoid unnecessarily long paths, you can bring a path into scope with `use`.
+
+```rust
+mod front_of_house {
+    pub mod hosting {
+        pub fn add_to_waitlist() {}
+    }
+}
+
+use crate::front_of_house::hosting;
+
+pub fn eat_at_restaurant() {
+    hosting::add_to_waitlist();
+}
+```
+
+Note that the convention is to bring the parent module of a function into scope instead of the function itself, as this is more readable.
+
+`use` is also how you bring libraries' types into scope, although in this case generally you bring the type itself into scope.
+
+```rust
+use std::collections::HashMap;
+
+fn main() {
+    let mut map = HashMap::new();
+    map.insert(1, 2);
+}
+```
+
+### New names with `as`
+
+You can rename an item when bringing it into scope with `as`.
+
+```rust
+use std::fmt::Result;
+use std::io::Result as IoResult;
+```
+
+### Re-exporting with `pub use`
+
+You can re-export a name that you have brought into scope with `pub use`
+
+```rust
+pub use crate::front_of_house::hosting;
+```
+
+This is useful when you want the external API for a module to differ from how it is internally implemented.
+
+### Cleaning up `use` lists
+
+```rust
+// bad
+use std::cmp::Ordering;
+use std::io;
+
+// good
+use std::{cmp::Ordering, io};
+```
+
+```rust
+// bad
+use std::io;
+use std::io::Write;
+
+// good
+use std::io::{self, Write};
+```
+
+### The glob operator
+
+You can bring all public items in a module into scope with the `*` glob operator.
+
+```rust
+use std::collections::*;
+```
+
+### Moving modules to files
+
+Rust lets you declare that a module lives in a file by assuming that a file with the same name as a module defined as a statement exists:
+
+```rust
+// src/lib.rs
+mod front_of_house;
+
+pub use crate::front_of_house::hosting;
+
+pub fn eat_at_restaurant() {
+    hosting::add_to_waitlist();
+    hosting::add_to_waitlist();
+    hosting::add_to_waitlist();
+}
+```
+
+```rust
+// src/front_of_house.rs
+pub mod hosting;
+```
+
+```rust
+// src/front_of_house/hosting.rs
+pub fn add_to_waitlist() {}
 ```
